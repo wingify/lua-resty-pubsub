@@ -119,7 +119,7 @@ end
 function _flush_buffer(self)
     local ok, err = ngx.timer.at(0, _flush, self)
     if not ok then
-        ngx.log(ngx.ERR, "failed to create timer at _flush_buffer, err: ", err)
+        ngx.log(ngx.WARN, "failed to create timer at _flush_buffer, err: ", err)
     end
 end
 
@@ -141,7 +141,7 @@ _timer_flush = function (premature, self, time)
 
     local ok, err = ngx.timer.at(time, _timer_flush, self, time)
     if not ok then
-        ngx.log(ngx.ERR, "failed to create timer at _timer_flush, err: ", err)
+        ngx.log(ngx.WARN, "failed to create timer at _timer_flush, err: ", err)
     end
 end
 
