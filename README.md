@@ -4,7 +4,6 @@ Lua Pubsub client driver for the `ngx_lua` based on the cosocket API
 
 ## Table of Contents
 
-* [Name](#name)
 * [Description](#description)
 * [Synopsis](#synopsis)
 * [Configs](#configs)
@@ -24,7 +23,7 @@ Lua Pubsub client driver for the `ngx_lua` based on the cosocket API
 
 This Lua library is a Pubsub client driver for the ngx_lua nginx module: http://wiki.nginx.org/HttpLuaModule
 
-This Lua library takes advantage of ngx_lua's cosocket API, which ensures 100% nonblocking behavior. This library pushes messages (with attributes) to Google Cloud pubsub using nginx timers and http
+This Lua library takes advantage of ngx_lua's cosocket API, which ensures 100% nonblocking behavior. This library pushes messages (with attributes) to Google Cloud pubsub using nginx timers and http requests.
 
 Note that at least [ngx_lua 0.9.3](https://github.com/openresty/lua-nginx-module/tags) or [ngx_openresty 1.4.3.7](http://openresty.org/#Download) is required, and unfortunately only LuaJIT supported (`--with-luajit`).
 
@@ -102,16 +101,23 @@ Note that at least [ngx_lua 0.9.3](https://github.com/openresty/lua-nginx-module
                     local producer, err = pubsub_producer:new(project_id, pubsub_config, producer_config,
                                              oauth_config, success_callback, error_callback, oauth_setter, oauth_getter)
 
+                    -- Also check if there is any error while initializing producer
                     if err ~= nil then
                         ngx.log(ngx.ERR, "Unable to create producer ", err)
                         return
                     end
 
-                    -- Finally send the message with attributes
-                    producer:send("Some Random Text", {
+                    -- Finally send the message with attributes.
+                    local ok, send_err = producer:send("Some Random Text", {
                         attr1 = "Test1",
                         attr2 = "Test2"
                     })
+
+                    -- Also check if there is any error while sending message
+                    if send_err ~= nil then
+                        ngx.log(ngx.ERR, "Unable to send data to pubsub: ", send_err)
+                        return
+                    end
 
                 end
 
@@ -186,7 +192,7 @@ Example
     "http_timeout" : 6000,
     "keepalive_max_idle_timeout" : 2000,
     "keepalive_pool_size" : 50
-    }
+}
 ```
 
 A `oauth_config` table needs to be specified which is used for generating the oauth 2.0 verification for http request. It's options are:
@@ -301,7 +307,7 @@ Finally run `make install` for installing the module
 
 ### For Running Test Cases
 
-Run `sudo cpan Test::Nginx` for installing nginx test module
+Install [Test::Nginx](https://github.com/openresty/test-nginx) module for running test cases
 
 Finally run `make test` for running the test cases
 
