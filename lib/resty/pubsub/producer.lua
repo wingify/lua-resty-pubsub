@@ -119,7 +119,7 @@ end
 function _flush_buffer(self)
     local ok, err = ngx.timer.at(0, _flush, self)
     if not ok then
-        ngx.log(ngx.ERR, "failed to create timer at _flush_buffer, err: ", err)
+        ngx.log(ngx.WARN, "failed to create timer at _flush_buffer, err: ", err)
     end
 end
 
@@ -141,26 +141,43 @@ _timer_flush = function (premature, self, time)
 
     local ok, err = ngx.timer.at(time, _timer_flush, self, time)
     if not ok then
-        ngx.log(ngx.ERR, "failed to create timer at _timer_flush, err: ", err)
+        ngx.log(ngx.WARN, "failed to create timer at _timer_flush, err: ", err)
     end
 end
 
 function _M.send(self, message, attributes)
 
-    -- Creating a base64 encoded message for pubsub
-    local b64_encoded_message = {
+    if type(message) ~= "string" then
+        return false, "Data expected in string, got " .. type(message)
+    end
+
+    if type(attributes) ~= "table" then
+        return false, "Attributes expected as a table, got " .. type(attributes)
+    end
+
+    -- Creating a pubsub message for http body
+    local body_message = {
         data = message,
         attributes = attributes
     }
 
+    if self.ring_buffer == nil then
+        return false, "Buffer not initialized Properly"
+    end
+
     -- Adding packets to ring buffer
-    self.ring_buffer:add(b64_encoded_message)
+    local _, err = self.ring_buffer:add(body_message)
+
+    if err ~= nil then
+        return false, err
+    end
 
     -- Only send flush signal when there is no ongoing flush and ringbuffer has enough size to create batch
     if not self.is_flushing and (self.ring_buffer:need_send() or is_exiting()) then
         _flush_buffer(self)
     end
 
+    return true, nil
 end
 
 -- Replacing optional configs with default values if not provided
@@ -188,7 +205,7 @@ local function normalize_configs(self, pubsub_config, producer_config, oauth_con
 end
 
 -- Check if necessary config is provided
-local function check_mandatory_config(self, project_id, pubsub_config, oauth_config, oauth_setter, oauth_getter)
+local function validate_config(self, project_id, pubsub_config, producer_config, oauth_config, oauth_setter, oauth_getter)
     if not project_id then
         return false, "Project id not provided"
     end
@@ -218,13 +235,17 @@ local function check_mandatory_config(self, project_id, pubsub_config, oauth_con
         return false, "Oauth Setter must be defined if Oauth Getter is being used"
     end
 
+    if producer_config ~= nil and type(producer_config.max_batch_size) == "number" and producer_config.max_batch_size > 1000 then
+        return false, "Max Batch Size must be <= 1000"
+    end
+
     return true, nil
 end
 
 function _M.new(self, project_id, pubsub_config, producer_config, 
     oauth_config, success_handler, error_handler, oauth_setter, oauth_getter)
 
-    local _, err = check_mandatory_config(self, project_id, pubsub_config, oauth_config, oauth_setter, oauth_getter)
+    local _, err = validate_config(self, project_id, pubsub_config, producer_config, oauth_config, oauth_setter, oauth_getter)
     if err ~= nil then
         return nil, err
     end
