@@ -1,6 +1,10 @@
 # lua-resty-pubsub
 
-Lua Pubsub client driver for the `ngx_lua` based on the cosocket API
+Lua Pubsub client driver for the `ngx_lua` based on the cosocket API.
+
+[![lua module](https://img.shields.io/badge/lua-module-blue?style=for-the-badge&logo=lua)](https://luarocks.org/modules/vwointegration/lua-resty-pubsub)
+[![lua module](https://img.shields.io/badge/lua%20rocks-1.1-orange?style=for-the-badge&logo=lua)](https://luarocks.org/modules/vwointegration/lua-resty-pubsub)
+[![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge&logo=)](https://opensource.org/licenses/MIT)
 
 ## Table of Contents
 
