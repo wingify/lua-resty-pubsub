@@ -159,16 +159,23 @@ end
 
 function _M.get_oauth_token(self)
 
-	-- Check if token is expired or never created. if yes, then fetch for a new one
-	if self.token_getter(self) == nil or (ngx.time() - self.oauth_token_time >= constants.OAUTH_TOKEN_EXPIRY) then
-		local oauth_token, err = refresh_oauth_token(self)
-		self.token_setter(self, oauth_token)
-		self.oauth_token_time = ngx.time()
-		return self.token_getter(self), err
-	else
-		return self.token_getter(self), nil
-    end
+	local status, token = pcall(function () 
+		-- Check if token is expired or never created. if yes, then fetch for a new one
+		if self.token_getter(self) == nil or (ngx.time() - self.oauth_token_time >= constants.OAUTH_TOKEN_EXPIRY) then
+			local oauth_token, err = refresh_oauth_token(self)
+			self.token_setter(self, oauth_token)
+			self.oauth_token_time = ngx.time()
+			return {self.token_getter(self), err}
+		else
+			return {self.token_getter(self), nil}
+		end
+	end)
 
+	if not status then
+		return nil, token -- If something fails while executing callback, token object will comprise of the callback error
+	else
+		return table.unpack(token) -- Else return a table consisting of data & error (if any)
+	end
 end
 
 return _M
