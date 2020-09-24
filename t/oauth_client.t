@@ -22,6 +22,7 @@ location = /t {
         local oathclient = require "resty.pubsub.oauth_client"
 
         local create_oauth_client = function()
+            local topic = "topic"
             local oauth_config = {
                 service_account_key_path = "t/test.json",
                 oauth_base_uri = "https://www.googleapis.com/oauth2/v4/token",
@@ -30,8 +31,8 @@ location = /t {
                 }
             }
 
-            local client = oathclient:new(oauth_config)
-            if client == nil then
+            local auth_client = oathclient:new(oauth_config, topic)
+            if auth_client == nil then
                 return
             end
             

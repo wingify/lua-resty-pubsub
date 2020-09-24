@@ -22,17 +22,16 @@ location = /t {
         local producer = require "resty.pubsub.producer"
 
         local create_producer = function()
-            local project_id = "project-1"
 
             local pubsub_config = {
-                topic = "topic-1"
+                project_id = "project-1",
+                topic = "topic-1",
+                oauth_config = {
+                    service_account_key_path = "./test.json"
+                }
             }
 
-            local oauth_config = {
-                service_account_key_path = "./test.json"
-            }
-
-            local p, err = producer:new(project_id, pubsub_config, nil, oauth_config)
+            local p, err = producer:new(pubsub_config)
             if err ~= nil then
                 return
             end

@@ -204,6 +204,7 @@ local function normalize_configs(self, pubsub_config)
 
     pubsub_config.oauth_config.oauth_base_uri = pubsub_config.oauth_config.oauth_base_uri or constants.OAUTH_BASE_URI
     pubsub_config.oauth_config.oauth_scopes = pubsub_config.oauth_config.oauth_scopes or constants.OAUTH_SCOPES
+    pubsub_config.oauth_config.oauth_token_dict = pubsub_config.oauth_config.oauth_token_dict or constants.OAUTH_TOKEN_DICT
 
     return pubsub_config
 end
@@ -257,7 +258,7 @@ function _M.new(self, pubsub_config)
     ngx.log(ngx.DEBUG, "Creating producer for topic: ", pubsub_config.topic)
 
     -- Creating an instance of OAUTH 2.0 client for generating oauth token
-    local oauth_client = oauthclient:new(pubsub_config.oauth_config)
+    local oauth_client = oauthclient:new(pubsub_config.oauth_config, pubsub_config.topic)
 
     local instance = {
         producer_config = pubsub_config.producer_config,

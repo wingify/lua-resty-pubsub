@@ -43,4 +43,6 @@ _M.KEEPALIVE_POLL_SIZE = 50
 
 _M.OAUTH_TOKEN_EXPIRY = 3600 -- in seconds
 
+_M.OAUTH_TOKEN_DICT = ngx.shared.OAUTH_TOKEN
+
 return _M
