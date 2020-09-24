@@ -20,16 +20,17 @@ local setmetatable = setmetatable
 local _M = {}
 local mt = { __index = _M }
 
-function _M.new(self, project_id, pubsub_config, producer_config, oauth_client)
+function _M.new(self, pubsub_config, oauth_client)
 
     local instance = {
-        project_id = project_id,
+        project_id = pubsub_config.project_id,
         pubsub_topic = pubsub_config.topic,
         pubsub_base_domain = pubsub_config.pubsub_base_domain,
         pubsub_base_port = pubsub_config.pubsub_base_port,
-        http_timeout = producer_config.http_timeout,
-        keepalive_max_idle_timeout = producer_config.keepalive_max_idle_timeout,
-        keepalive_pool_size = producer_config.keepalive_pool_size,
+        is_emulator = pubsub_config.is_emulator,
+        http_timeout = pubsub_config.producer_config.http_timeout,
+        keepalive_max_idle_timeout = pubsub_config.producer_config.keepalive_max_idle_timeout,
+        keepalive_pool_size = pubsub_config.producer_config.keepalive_pool_size,
         oauth_client = oauth_client
     }
 
@@ -45,9 +46,23 @@ function _M.batch_send(self, encoded_messages)
 
     local path = "/v1/projects/" .. self.project_id .. "/topics/" .. self.pubsub_topic .. ":publish"
 
-    local oauth_token, oauth_err = self.oauth_client:get_oauth_token()
-    if oauth_err ~= nil then
-        return false, self.pubsub_topic, oauth_err, encoded_messages
+    -- Create a request body table
+    local requestBody = {
+        path = path,
+        method = "POST",
+        headers = {
+            ["Content-Type"]  = "application/json"
+        },
+        body = cjson.encode({messages = encoded_messages}),
+        ssl_verify = false
+    }
+
+    if not self.is_emulator then
+        local oauth_token, oauth_err = self.oauth_client:get_oauth_token()
+        if oauth_err ~= nil then
+            return false, self.pubsub_topic, oauth_err, encoded_messages
+        end
+        requestBody["headers"]["Authorization"] = "Bearer " .. oauth_token
     end
 
 	local httpc = http.new()
@@ -56,26 +71,22 @@ function _M.batch_send(self, encoded_messages)
     httpc:set_timeout(self.http_timeout)
 
     -- Connecting to pubsub endpoint for making request
-    httpc:connect(self.pubsub_base_domain, self.pubsub_base_port)
+    local connect_res, connect_err = httpc:connect(self.pubsub_base_domain, self.pubsub_base_port)
+    if not connect_res then
+        ngx.log(ngx.ERR, "Got error in connection: ", connect_err)
+        return false, self.pubsub_topic, connect_err, encoded_messages
+    end
 
-    -- And request using a path, rather than a full URI.
-    local handshake_res, handshake_err = httpc:ssl_handshake(nil, self.pubsub_base_domain, false)
-    if not handshake_res then
-        ngx.log(ngx.ERR, "Got error in handshake = ", handshake_err)
-        return false, self.pubsub_topic, handshake_err, encoded_messages
+    if not self.is_emulator then
+        local handshake_res, handshake_err = httpc:ssl_handshake(nil, self.pubsub_base_domain, false)
+        if not handshake_res then
+            ngx.log(ngx.ERR, "Got error in handshake: ", handshake_err)
+            return false, self.pubsub_topic, handshake_err, encoded_messages
+        end
     end
 
     -- Send final request to pubsub endpoint
-    local res, res_err = httpc:request({
-        path = path,
-        method = "POST",
-        headers = {
-            ["Content-Type"]  = "application/json",
-            ["Authorization"] = "Bearer " .. oauth_token,
-        },
-        body = cjson.encode({messages = encoded_messages}),
-        ssl_verify = false
-    })
+    local res, res_err = httpc:request(requestBody)
 
     -- Check for response
     if not res then
@@ -99,7 +110,7 @@ function _M.batch_send(self, encoded_messages)
     -- Setting http keepalive for connection reuse
     local ok, err = httpc:set_keepalive(self.keepalive_max_idle_timeout, self.keepalive_pool_size)
     if not ok then
-        return false, self.pubsub_topic, err, encoded_messages
+        return true, self.pubsub_topic, err, encoded_messages
     end
 
     return true, self.pubsub_topic, nil, encoded_messages

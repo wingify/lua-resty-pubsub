@@ -62,25 +62,28 @@ local function push_batch(self)
     local status, topic, err, messages = self.request:batch_send(batch)
 
     if not status then
-        if self.error_handler ~= nil then
+        if self.error_callback ~= nil then
             -- Provide original data to the callback
             for _, message in ipairs(messages) do
                 message.data = ngx.decode_base64(message.data)
             end
-            local ok, callback_err = pcall(self.error_handler, topic, err, messages)
+            local ok, callback_err = pcall(self.error_callback, topic, err, messages)
             if not ok then
-                ngx.log(ngx.ERR, "failed for callback error_handler: ", cjson.encode(callback_err))
+                ngx.log(ngx.ERR, "failed for callback error_callback: ", cjson.encode(callback_err))
             end
         end
     else
-        if self.success_handler ~= nil then
+        if err ~= nil then
+            ngx.log(ngx.WARN, cjson.encode(err))
+        end
+        if self.success_callback ~= nil then
             -- Provide successfull original data to the callback
              for _, message in ipairs(messages) do
                 message.data = ngx.decode_base64(message.data)
             end
-            local ok, callback_err = pcall(self.success_handler, topic, nil, messages)
+            local ok, callback_err = pcall(self.success_callback, topic, nil, messages)
             if not ok then
-                ngx.log(ngx.ERR, "failed for callback success_handler: ", cjson.encode(callback_err))
+                ngx.log(ngx.ERR, "failed for callback success_callback: ", cjson.encode(callback_err))
             end
         end
     end
@@ -181,32 +184,33 @@ function _M.send(self, message, attributes)
 end
 
 -- Replacing optional configs with default values if not provided
-local function normalize_configs(self, pubsub_config, producer_config, oauth_config)
+local function normalize_configs(self, pubsub_config)
 
     pubsub_config.pubsub_base_domain = pubsub_config.pubsub_base_domain or constants.PUBSUB_BASE_DOMAIN
     pubsub_config.pubsub_base_port = pubsub_config.pubsub_base_port or constants.PUBSUB_BASE_PORT
+    pubsub_config.is_emulator = pubsub_config.is_emulator or constants.IS_EMULATOR
 
-    if producer_config == nil then
-        producer_config = {}
+    if pubsub_config.producer_config == nil then
+        pubsub_config.producer_config = {}
     end
 
-    producer_config.max_batch_size = producer_config.max_batch_size or constants.MAX_BATCH_SIZE
-    producer_config.max_buffering = producer_config.max_buffering or constants.MAX_BUFFERING
-    producer_config.timer_interval = (producer_config.timer_interval or constants.TIMER_INTERVAL) / 1000
-    producer_config.last_flush_interval = (producer_config.last_flush_interval or constants.LAST_FLUSH_INTERVAL) / 1000
-    producer_config.http_timeout = producer_config.http_timeout or constants.HTTP_TIMEOUT
-    producer_config.keepalive_max_idle_timeout = producer_config.keepalive_max_idle_timeout or constants.KEEPALIVE_MAX_IDLE_TIMEOUT
-    producer_config.keepalive_pool_size = producer_config.keepalive_pool_size or constants.KEEPALIVE_POLL_SIZE
+    pubsub_config.producer_config.max_batch_size = pubsub_config.producer_config.max_batch_size or constants.MAX_BATCH_SIZE
+    pubsub_config.producer_config.max_buffering = pubsub_config.producer_config.max_buffering or constants.MAX_BUFFERING
+    pubsub_config.producer_config.timer_interval = (pubsub_config.producer_config.timer_interval or constants.TIMER_INTERVAL) / 1000
+    pubsub_config.producer_config.last_flush_interval = (pubsub_config.producer_config.last_flush_interval or constants.LAST_FLUSH_INTERVAL) / 1000
+    pubsub_config.producer_config.http_timeout = pubsub_config.producer_config.http_timeout or constants.HTTP_TIMEOUT
+    pubsub_config.producer_config.keepalive_max_idle_timeout = pubsub_config.producer_config.keepalive_max_idle_timeout or constants.KEEPALIVE_MAX_IDLE_TIMEOUT
+    pubsub_config.producer_config.keepalive_pool_size = pubsub_config.producer_config.keepalive_pool_size or constants.KEEPALIVE_POLL_SIZE
 
-    oauth_config.oauth_base_uri = oauth_config.oauth_base_uri or constants.OAUTH_BASE_URI
-    oauth_config.oauth_scopes = oauth_config.oauth_scopes or constants.OAUTH_SCOPES
+    pubsub_config.oauth_config.oauth_base_uri = pubsub_config.oauth_config.oauth_base_uri or constants.OAUTH_BASE_URI
+    pubsub_config.oauth_config.oauth_scopes = pubsub_config.oauth_config.oauth_scopes or constants.OAUTH_SCOPES
 
-    return pubsub_config, producer_config, oauth_config
+    return pubsub_config
 end
 
 -- Check if necessary config is provided
-local function validate_config(self, project_id, pubsub_config, producer_config, oauth_config, oauth_setter, oauth_getter)
-    if not project_id then
+local function validate_config(self, pubsub_config)
+    if not pubsub_config.project_id then
         return false, "Project id not provided"
     end
 
@@ -219,38 +223,31 @@ local function validate_config(self, project_id, pubsub_config, producer_config,
         return false, "Pubsub topic not provided"
     end
 
-    if oauth_config == nil or oauth_config == {} then
-        return false, "Oauth Config not provided"
+    if not pubsub_config.is_emulator then
+        if pubsub_config.oauth_config == nil or pubsub_config.oauth_config == {} then
+            return false, "Oauth Config not provided"
+        end
+
+        if pubsub_config.oauth_config.service_account_key_path == nil then
+            return false, "Service Account key Path not provided"
+        end
     end
 
-    if oauth_config.service_account_key_path == nil then
-        return false, "Service Account key Path not provided"
-    end
-
-    if oauth_setter ~= nil and oauth_getter == nil then
-        return false, "Oauth Getter must be defined if Oauth setter is being used"
-    end
-
-    if oauth_getter ~= nil and oauth_setter == nil then
-        return false, "Oauth Setter must be defined if Oauth Getter is being used"
-    end
-
-    if producer_config ~= nil and type(producer_config.max_batch_size) == "number" and producer_config.max_batch_size > 1000 then
+    if pubsub_config.producer_config ~= nil and type(pubsub_config.producer_config.max_batch_size) == "number" and pubsub_config.producer_config.max_batch_size > 1000 then
         return false, "Max Batch Size must be <= 1000"
     end
 
     return true, nil
 end
 
-function _M.new(self, project_id, pubsub_config, producer_config, 
-    oauth_config, success_handler, error_handler, oauth_setter, oauth_getter)
+function _M.new(self, pubsub_config)
 
-    local _, err = validate_config(self, project_id, pubsub_config, producer_config, oauth_config, oauth_setter, oauth_getter)
+    local _, err = validate_config(self, pubsub_config)
     if err ~= nil then
         return nil, err
     end
 
-    pubsub_config, producer_config, oauth_config = normalize_configs(self, pubsub_config, producer_config, oauth_config)
+    pubsub_config = normalize_configs(self, pubsub_config)
 
     -- Create only one instance of pubsub producer per topic per worker process
     if instances[pubsub_config.topic] ~= nil then
@@ -260,22 +257,19 @@ function _M.new(self, project_id, pubsub_config, producer_config,
     ngx.log(ngx.DEBUG, "Creating producer for topic: ", pubsub_config.topic)
 
     -- Creating an instance of OAUTH 2.0 client for generating oauth token
-    local oauth_client = oauthclient:new(oauth_config, oauth_setter, oauth_getter)
+    local oauth_client = oauthclient:new(pubsub_config.oauth_config)
 
     local instance = {
-        project_id = project_id,
-        pubsub_config = pubsub_config,
-        producer_config = producer_config,
-        oauth_config = oauth_config,
-        success_handler = success_handler,
-        error_handler = error_handler,
+        producer_config = pubsub_config.producer_config,
+        success_callback = pubsub_config.success_callback,
+        error_callback = pubsub_config.error_callback,
         last_flush = ngx.time(), -- We also need to track when the last batch flush was occured
-        ring_buffer = ringbuffer:new(producer_config.max_batch_size, producer_config.max_buffering), -- For storing buffered data
-        request = request:new(project_id, pubsub_config, producer_config, oauth_client), -- For sending request to pubsub domain
+        ring_buffer = ringbuffer:new(pubsub_config.producer_config.max_batch_size, pubsub_config.producer_config.max_buffering), -- For storing buffered data
+        request = request:new(pubsub_config, oauth_client), -- For sending request to pubsub domain
         oauth_client = oauth_client
     }
 
-    _timer_flush(nil, instance, producer_config.timer_interval)
+    _timer_flush(nil, instance, pubsub_config.producer_config.timer_interval)
 
     instances[pubsub_config.topic] = instance
 

@@ -17,32 +17,33 @@ local io = require "io"
 local resty_rsa = require "resty.rsa"
 local http = require "resty.http"
 local constants = require "resty.pubsub.constants"
+local OAUTH_TOKEN = ngx.shared.OAUTH_TOKEN
 
 local setmetatable = setmetatable
 
 local _M = {}
 local mt = { __index = _M }
 
-function oauth_token_setter(self, oauth_token)
-	self.oauth_token = oauth_token
-end
-
-function oauth_token_getter(self)
-	return self.oauth_token
-end
-
-function _M.new(self, oauth_config, oauth_setter, oauth_getter)
+function _M.new(self, oauth_config)
 
 	local instance = {
 		service_account_key_path = oauth_config.service_account_key_path,
 		oauth_base_uri = oauth_config.oauth_base_uri,
 		oauth_scopes = oauth_config.oauth_scopes,
-		oauth_token_time = 0, -- We need to maintain token fetch time so that we can update it before expiring
-		token_setter = oauth_setter or oauth_token_setter,
-		token_getter = oauth_getter or oauth_token_getter
+		oauth_token_time = 0 -- We need to maintain token fetch time so that we can update it before expiring
 	}
 
 	return setmetatable(instance, mt)
+end
+
+-- A method which sets the generated oauth token to a lua dictionary.
+local function oauth_setter(self, oauth_token)
+    OAUTH_TOKEN:set("token", oauth_token)
+end
+
+-- A method which get the generated oauth token from a lua dictionary.
+local function oauth_getter(self)
+    return OAUTH_TOKEN:get("token")
 end
 
 local function get_jwt_payload(self, credentials)
@@ -158,23 +159,13 @@ local function refresh_oauth_token(self)
 end
 
 function _M.get_oauth_token(self)
-
-	local status, token = pcall(function () 
-		-- Check if token is expired or never created. if yes, then fetch for a new one
-		if self.token_getter(self) == nil or (ngx.time() - self.oauth_token_time >= constants.OAUTH_TOKEN_EXPIRY) then
-			local oauth_token, err = refresh_oauth_token(self)
-			self.token_setter(self, oauth_token)
-			self.oauth_token_time = ngx.time()
-			return {self.token_getter(self), err}
-		else
-			return {self.token_getter(self), nil}
-		end
-	end)
-
-	if not status then
-		return nil, token -- If something fails while executing callback, token object will comprise of the callback error
+	if oauth_getter(self) == nil or (ngx.time() - self.oauth_token_time >= constants.OAUTH_TOKEN_EXPIRY) then
+		local oauth_token, err = refresh_oauth_token(self)
+		oauth_setter(self, oauth_token)
+		self.oauth_token_time = ngx.time()
+		return oauth_getter(self), err
 	else
-		return table.unpack(token) -- Else return a table consisting of data & error (if any)
+		return oauth_getter(self), nil
 	end
 end
 
