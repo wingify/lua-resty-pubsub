@@ -241,7 +241,19 @@ local function validate_config(self, pubsub_config)
     return true, nil
 end
 
-function _M.new(self, pubsub_config)
+function _M.new(self, project_id_or_config, pubsub_config, producer_config,
+    oauth_config, success_callback, error_callback, oauth_setter, oauth_getter)
+
+    -- project_id_or_config is used for supporting both old method of accepting config as well as the new one
+    if type(project_id_or_config) ~= "table" and type(project_id_or_config) == "string" then
+        pubsub_config['project_id'] = project_id_or_config
+        pubsub_config['producer_config'] = producer_config
+        pubsub_config['oauth_config'] = oauth_config
+        pubsub_config['success_callback'] = success_callback
+        pubsub_config['error_callback'] = error_callback
+    else
+        pubsub_config = project_id_or_config
+    end
 
     local _, err = validate_config(self, pubsub_config)
     if err ~= nil then
