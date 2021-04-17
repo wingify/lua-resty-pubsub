@@ -43,52 +43,53 @@ end
 
 -- Creating final batch that needs to be pushed to pubsub
 local function push_batch(self)
-    local batch = {}
-    local buffer = self.ring_buffer
-    while true do
-        local message = buffer:pop()
-        if not message then
-            break
+    pcall(function () -- Make pushing logic in pcall so if any unhandled exception occurs, our flush lock still gets unlocked
+        local batch = {}
+        local buffer = self.ring_buffer
+        while true do
+            local message = buffer:pop()
+            if not message then
+                break
+            end
+            message.data = ngx.encode_base64(message.data) -- Encoding message to base64 before sending to pubsub
+            batch[#batch + 1] = message
+            -- There is a limit for pushing message to pubsub in request body
+            if #batch >= self.producer_config.max_batch_size then
+                break
+            end
         end
-        message.data = ngx.encode_base64(message.data) -- Encoding message to base64 before sending to pubsub
-        batch[#batch + 1] = message
-        -- There is a limit for pushing message to pubsub in request body
-        if #batch >= self.producer_config.max_batch_size then
-            break
-        end
-    end
 
-    -- Final Call to Pubsub Producer to send data
-    local status, topic, err, messages = self.request:batch_send(batch)
+        -- Final Call to Pubsub Producer to send data
+        local status, topic, err, messages = self.request:batch_send(batch)
 
-    if not status then
-        if self.error_callback ~= nil then
-            -- Provide original data to the callback
-            for _, message in ipairs(messages) do
-                message.data = ngx.decode_base64(message.data)
+        if not status then
+            if self.error_callback ~= nil then
+                -- Provide original data to the callback
+                for _, message in ipairs(messages) do
+                    message.data = ngx.decode_base64(message.data)
+                end
+                local ok, callback_err = pcall(self.error_callback, topic, err, messages)
+                if not ok then
+                    ngx.log(ngx.ERR, "failed for callback error_callback: ", cjson.encode(callback_err))
+                end
             end
-            local ok, callback_err = pcall(self.error_callback, topic, err, messages)
-            if not ok then
-                ngx.log(ngx.ERR, "failed for callback error_callback: ", cjson.encode(callback_err))
+        else
+            if err ~= nil then
+                ngx.log(ngx.WARN, cjson.encode(err))
+            end
+            if self.success_callback ~= nil then
+                -- Provide successfull original data to the callback
+                for _, message in ipairs(messages) do
+                    message.data = ngx.decode_base64(message.data)
+                end
+                local ok, callback_err = pcall(self.success_callback, topic, nil, messages)
+                if not ok then
+                    ngx.log(ngx.ERR, "failed for callback success_callback: ", cjson.encode(callback_err))
+                end
             end
         end
-    else
-        if err ~= nil then
-            ngx.log(ngx.WARN, cjson.encode(err))
-        end
-        if self.success_callback ~= nil then
-            -- Provide successfull original data to the callback
-             for _, message in ipairs(messages) do
-                message.data = ngx.decode_base64(message.data)
-            end
-            local ok, callback_err = pcall(self.success_callback, topic, nil, messages)
-            if not ok then
-                ngx.log(ngx.ERR, "failed for callback success_callback: ", cjson.encode(callback_err))
-            end
-        end
-    end
-
-    return batch
+        batch = nil -- free the batch
+    end)
 end
 
 local _flush_buffer
