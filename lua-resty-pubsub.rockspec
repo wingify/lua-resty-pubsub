@@ -1,8 +1,8 @@
 package = "lua-resty-pubsub"
-version = "1.3-0"
+version = "1.4-0"
 source = {
    url = "git://github.com/wingify/lua-resty-pubsub",
-   tag = "v1.3"
+   tag = "v1.4"
 }
 description = {
    summary = "Lua Pubsub client driver for the ngx_lua based on the cosocket API",
