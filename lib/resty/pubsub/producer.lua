@@ -236,10 +236,6 @@ local function validate_workload_identity_config(self, workload_identity_config)
         return false, "Workload Identity Config not provided"
     end
 
-    if workload_identity_config.token_url == nil then
-        return false, "Token url not provided"
-    end
-
     return true, nil
 end
 
