@@ -20,7 +20,7 @@ local setmetatable = setmetatable
 local _M = {}
 local mt = { __index = _M }
 
-function _M.new(self, pubsub_config, oauth_client)
+function _M.new(self, pubsub_config, auth_client)
 
     local instance = {
         project_id = pubsub_config.project_id,
@@ -31,7 +31,7 @@ function _M.new(self, pubsub_config, oauth_client)
         http_timeout = pubsub_config.producer_config.http_timeout,
         keepalive_max_idle_timeout = pubsub_config.producer_config.keepalive_max_idle_timeout,
         keepalive_pool_size = pubsub_config.producer_config.keepalive_pool_size,
-        oauth_client = oauth_client
+        auth_client = auth_client
     }
 
     return setmetatable(instance, mt)
@@ -58,11 +58,11 @@ function _M.batch_send(self, encoded_messages)
     }
 
     if not self.is_emulator then
-        local oauth_token, oauth_err = self.oauth_client:get_oauth_token()
-        if oauth_err ~= nil then
-            return false, self.pubsub_topic, oauth_err, encoded_messages
+        local auth_token, auth_err = self.auth_client:get_token()
+        if auth_err ~= nil then
+            return false, self.pubsub_topic, auth_err, encoded_messages
         end
-        requestBody["headers"]["Authorization"] = "Bearer " .. oauth_token
+        requestBody["headers"]["Authorization"] = "Bearer " .. auth_token
     end
 
 	local httpc = http.new()

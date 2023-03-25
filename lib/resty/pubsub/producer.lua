@@ -18,6 +18,7 @@ local constants = require "resty.pubsub.constants"
 local ringbuffer = require "resty.pubsub.ringbuffer"
 local request = require "resty.pubsub.request"
 local oauthclient = require "resty.pubsub.oauth_client"
+local workloadidentityclient = require "resty.pubsub.workload_identity_client"
 
 local setmetatable = setmetatable
 
@@ -210,6 +211,30 @@ local function normalize_configs(self, pubsub_config)
     return pubsub_config
 end
 
+local function validate_oauth_config(self, oauth_config)
+    if oauth_config == nil or oauth_config == {} then
+        return false, "Oauth Config not provided"
+    end
+
+    if oauth_config.service_account_key_path == nil then
+        return false, "Service Account key Path not provided"
+    end
+
+    return true, nil
+end
+
+local function validate_workload_identity_config(self, workload_identity_config)
+    if workload_identity_config == nil or workload_identity_config == {} then
+        return false, "Workload Identity Config not provided"
+    end
+
+    if workload_identity_config.token_url == nil then
+        return false, "Token url not provided"
+    end
+
+    return true, nil
+end
+
 -- Check if necessary config is provided
 local function validate_config(self, pubsub_config)
     if not pubsub_config.project_id then
@@ -226,12 +251,11 @@ local function validate_config(self, pubsub_config)
     end
 
     if not pubsub_config.is_emulator then
-        if pubsub_config.oauth_config == nil or pubsub_config.oauth_config == {} then
-            return false, "Oauth Config not provided"
-        end
+        local valid_oauth_config, oauth_config_validation_error = validate_oauth_config(self, pubsub_config.oauth_config)
+        local valid_workload_identity_config, workload_identity_config_validation_error = validate_workload_identity_config(self, pubsub_config.workload_identity_config)
 
-        if pubsub_config.oauth_config.service_account_key_path == nil then
-            return false, "Service Account key Path not provided"
+        if not valid_oauth_config and not valid_workload_identity_config then
+            return false, oauth_config_validation_error or workload_identity_config_validation_error
         end
     end
 
@@ -270,8 +294,13 @@ function _M.new(self, project_id_or_config, pubsub_config, producer_config,
 
     ngx.log(ngx.DEBUG, "Creating producer for topic: ", pubsub_config.topic)
 
-    -- Creating an instance of OAUTH 2.0 client for generating oauth token
-    local oauth_client = oauthclient:new(pubsub_config.oauth_config, pubsub_config.topic)
+    local auth_client
+
+    if pubsub_config.oauth_config ~= nil then
+        auth_client = oauthclient:new(pubsub_config.oauth_config, pubsub_config.topic)
+    elseif pubsub_config.workload_identity_config ~= nil then
+        auth_client = workloadidentityclient:new(pubsub_config.workload_identity_config, pubsub_config.topic)
+    end
 
     local instance = {
         producer_config = pubsub_config.producer_config,
@@ -279,8 +308,7 @@ function _M.new(self, project_id_or_config, pubsub_config, producer_config,
         error_callback = pubsub_config.error_callback,
         last_flush = ngx.time(), -- We also need to track when the last batch flush was occured
         ring_buffer = ringbuffer:new(pubsub_config.producer_config.max_batch_size, pubsub_config.producer_config.max_buffering), -- For storing buffered data
-        request = request:new(pubsub_config, oauth_client), -- For sending request to pubsub domain
-        oauth_client = oauth_client
+        request = request:new(pubsub_config, auth_client), -- For sending request to pubsub domain
     }
 
     _timer_flush(nil, instance, pubsub_config.producer_config.timer_interval)
