@@ -21,6 +21,8 @@ _M.PUBSUB_BASE_DOMAIN = "pubsub.googleapis.com"
 
 _M.IS_EMULATOR = false
 
+_M.DISABLE_SSL = false
+
 _M.OAUTH_BASE_URI  = "https://www.googleapis.com/oauth2/v4/token"
 
 _M.OAUTH_SCOPES = {

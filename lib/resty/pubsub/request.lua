@@ -28,6 +28,7 @@ function _M.new(self, pubsub_config, auth_client)
         pubsub_base_domain = pubsub_config.pubsub_base_domain,
         pubsub_base_port = pubsub_config.pubsub_base_port,
         is_emulator = pubsub_config.is_emulator,
+        disable_ssl = pubsub_config.disable_ssl,
         http_timeout = pubsub_config.producer_config.http_timeout,
         keepalive_max_idle_timeout = pubsub_config.producer_config.keepalive_max_idle_timeout,
         keepalive_pool_size = pubsub_config.producer_config.keepalive_pool_size,
@@ -77,7 +78,7 @@ function _M.batch_send(self, encoded_messages)
         return false, self.pubsub_topic, connect_err, encoded_messages
     end
 
-    if not self.is_emulator then
+    if not self.is_emulator and not self.disable_ssl then
         local handshake_res, handshake_err = httpc:ssl_handshake(nil, self.pubsub_base_domain, false)
         if not handshake_res then
             ngx.log(ngx.ERR, "Got error in handshake: ", handshake_err)

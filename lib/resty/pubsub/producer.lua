@@ -191,6 +191,7 @@ local function normalize_configs(self, pubsub_config)
     pubsub_config.pubsub_base_domain = pubsub_config.pubsub_base_domain or constants.PUBSUB_BASE_DOMAIN
     pubsub_config.pubsub_base_port = pubsub_config.pubsub_base_port or constants.PUBSUB_BASE_PORT
     pubsub_config.is_emulator = pubsub_config.is_emulator or constants.IS_EMULATOR
+    pubsub_config.disable_ssl = pubsub_config.disable_ssl or constants.DISABLE_SSL
 
     if pubsub_config.producer_config == nil then
         pubsub_config.producer_config = {}
