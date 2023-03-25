@@ -26,7 +26,7 @@ function _M.new(self, workload_identity_config, topic)
 	
 	local instance = {
 		topic = topic,
-		token_url = workload_identity_config.token_url, -- http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
+		token_url = workload_identity_config.token_url,
 		token_expires = 0, -- We need to maintain token expiry time so that we can update it before expiring
 		token_dict = workload_identity_config.token_dict
 	}

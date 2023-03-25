@@ -204,9 +204,16 @@ local function normalize_configs(self, pubsub_config)
     pubsub_config.producer_config.keepalive_max_idle_timeout = pubsub_config.producer_config.keepalive_max_idle_timeout or constants.KEEPALIVE_MAX_IDLE_TIMEOUT
     pubsub_config.producer_config.keepalive_pool_size = pubsub_config.producer_config.keepalive_pool_size or constants.KEEPALIVE_POLL_SIZE
 
-    pubsub_config.oauth_config.oauth_base_uri = pubsub_config.oauth_config.oauth_base_uri or constants.OAUTH_BASE_URI
-    pubsub_config.oauth_config.oauth_scopes = pubsub_config.oauth_config.oauth_scopes or constants.OAUTH_SCOPES
-    pubsub_config.oauth_config.oauth_token_dict = pubsub_config.oauth_config.oauth_token_dict or constants.OAUTH_TOKEN_DICT
+    if pubsub_config.oauth_config ~= nil then
+        pubsub_config.oauth_config.oauth_base_uri = pubsub_config.oauth_config.oauth_base_uri or constants.OAUTH_BASE_URI
+        pubsub_config.oauth_config.oauth_scopes = pubsub_config.oauth_config.oauth_scopes or constants.OAUTH_SCOPES
+        pubsub_config.oauth_config.oauth_token_dict = pubsub_config.oauth_config.oauth_token_dict or constants.OAUTH_TOKEN_DICT
+    end
+
+    if pubsub_config.workload_identity_config ~= nil then
+        pubsub_config.workload_identity_config.token_url = pubsub_config.workload_identity_config.token_url or constants.WORKLOAD_IDENTITY_TOKEN_URL
+        pubsub_config.workload_identity_config.token_dict = pubsub_config.workload_identity_config.token_dict or constants.OAUTH_TOKEN_DICT
+    end
 
     return pubsub_config
 end

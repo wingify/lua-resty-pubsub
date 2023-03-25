@@ -45,4 +45,6 @@ _M.OAUTH_TOKEN_EXPIRY = 3600 -- in seconds
 
 _M.OAUTH_TOKEN_DICT = ngx.shared.OAUTH_TOKEN
 
+_M.WORKLOAD_IDENTITY_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+
 return _M
