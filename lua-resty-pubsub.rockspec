@@ -28,6 +28,7 @@ build = {
    modules = {
       ["resty.pubsub.constants"] = "lib/resty/pubsub/constants.lua",
       ["resty.pubsub.oauth_client"] = "lib/resty/pubsub/oauth_client.lua",
+      ["resty.pubsub.workload_identity_client"] = "lib/resty/pubsub/workload_identity_client.lua",
       ["resty.pubsub.producer"] = "lib/resty/pubsub/producer.lua",
       ["resty.pubsub.request"] = "lib/resty/pubsub/request.lua",
       ["resty.pubsub.ringbuffer"] = "lib/resty/pubsub/ringbuffer.lua"
