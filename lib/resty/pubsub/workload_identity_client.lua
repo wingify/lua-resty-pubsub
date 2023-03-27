@@ -51,7 +51,7 @@ function _M.get_token(self)
 	end
 	
 	local status, token = pcall(function () 
-		if token_getter(self) == nil or token_expires == nil or (ngx.time() > token_expires) then
+		if token_getter(self) == nil or self.token_expires == nil or (ngx.time() > self.token_expires) then
 			local httpc = http.new()
 			local res, err = httpc:request_uri(self.token_url, {
 				headers = {
