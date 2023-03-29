@@ -159,7 +159,7 @@ local function refresh_oauth_token(self)
 	return cjson.decode(res.body)["access_token"], nil
 end
 
-function _M.get_oauth_token(self)
+function _M.get_token(self)
 
 	if self.oauth_token_dict == nil then
 		return nil, "Provided oauth lua dictionary not found, please refer to documentation for adding it to nginx configuration"

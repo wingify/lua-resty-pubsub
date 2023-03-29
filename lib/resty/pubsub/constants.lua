@@ -21,6 +21,8 @@ _M.PUBSUB_BASE_DOMAIN = "pubsub.googleapis.com"
 
 _M.IS_EMULATOR = false
 
+_M.DISABLE_SSL = false
+
 _M.OAUTH_BASE_URI  = "https://www.googleapis.com/oauth2/v4/token"
 
 _M.OAUTH_SCOPES = {
@@ -44,5 +46,7 @@ _M.KEEPALIVE_POLL_SIZE = 50
 _M.OAUTH_TOKEN_EXPIRY = 3600 -- in seconds
 
 _M.OAUTH_TOKEN_DICT = ngx.shared.OAUTH_TOKEN
+
+_M.WORKLOAD_IDENTITY_TOKEN_URL = "http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token"
 
 return _M
