@@ -149,7 +149,7 @@ _timer_flush = function (premature, self, time)
     end
 end
 
-function _M.send(self, message, attributes)
+function _M.send(self, message, attributes, ordering_key)
 
     if type(message) ~= "string" then
         return false, "Data expected in string, got " .. type(message)
@@ -164,6 +164,10 @@ function _M.send(self, message, attributes)
         data = message,
         attributes = attributes
     }
+
+    if type(ordering_key) == "string" then
+        body_message['ordering_key'] = ordering_key
+    end
 
     if self.ring_buffer == nil then
         return false, "Buffer not initialized Properly"
