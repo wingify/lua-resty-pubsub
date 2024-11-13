@@ -103,7 +103,7 @@ Note that at least [ngx_lua 0.9.3](https://github.com/openresty/lua-nginx-module
                     local ok, send_err = producer:send("Some Random Text", {
                         attr1 = "Test1",
                         attr2 = "Test2"
-                    })
+                    }, "optional_ordering_key")
 
                     -- Also check if there is any error while sending message
                     if send_err ~= nil then
@@ -167,9 +167,9 @@ To load this module, just do this
 `syntax: local p, err = producer:new(pubsub_config)`
 
 #### send
-`syntax: p:send(message, attributes)`
+`syntax: p:send(message, attributes[, ordering_key])`
 
-* Requires a message of type string and attributes of type table
+* Requires a message of type string, attributes of type table and an optional ordering_key of type string
 
 [Back to TOC](#table-of-contents)
 
