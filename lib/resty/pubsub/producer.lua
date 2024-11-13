@@ -165,8 +165,13 @@ function _M.send(self, message, attributes, ordering_key)
         attributes = attributes
     }
 
-    if type(ordering_key) == "string" then
-        body_message['ordering_key'] = ordering_key
+
+    if ordering_key ~= nil then
+        if type(ordering_key) == "string" then
+            body_message['ordering_key'] = ordering_key
+        else
+            ngx.log(ngx.DEBUG, "Ordering key must be String hence dropping it ", ordering_key)
+        end
     end
 
     if self.ring_buffer == nil then
